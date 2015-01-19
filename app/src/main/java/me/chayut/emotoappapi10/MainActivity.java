@@ -1,14 +1,22 @@
 package me.chayut.emotoappapi10;
 
+import android.os.Message;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 
+import java.util.logging.Handler;
+
 
 public class MainActivity extends ActionBarActivity {
+
+    eMotoBTService meMotoBTService;
+    private static Handler mHandler;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,16 +44,30 @@ public class MainActivity extends ActionBarActivity {
             return true;
         }
 
-        final Button button = (Button) findViewById(R.id.mybutton);
-        button.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                // Perform action on click
 
-                eMotoBT.initiateBT();
-            }
-        });
 
         return super.onOptionsItemSelected(item);
+    }
+
+    public void btnClicked(View v)
+    {
+        meMotoBTService = new eMotoBTService(this);
+
+        Log.d("Application","BtnClicked");
+        byte[] mBytes = {(byte) 0x89, (byte) 0xfe};
+       // meMotoBTService.sendBytes(mBytes);
+
+
+    }
+
+    public void sendClicked(View v)
+    {
+        Log.d("Application","SendClicked");
+    }
+
+    public void sendClicked2(View v)
+    {
+        Log.d("Application","SendClicked2");
     }
 
 
