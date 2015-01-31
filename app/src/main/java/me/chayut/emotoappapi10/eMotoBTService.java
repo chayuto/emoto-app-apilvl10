@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Array;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.UUID;
@@ -42,7 +43,7 @@ public class eMotoBTService {
 
     private ConnectThread mConnectThread;
     private ConnectedThread mConnectedThread;
-    private int BTServiceState;
+    private int BTServiceState = 0;
     private Context mContext;
 
     private byte[] mainIncomingBuffer = {0};
@@ -52,8 +53,14 @@ public class eMotoBTService {
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         //mHandler = handler;
         mContext = context;
-        mConnectThread = new ConnectThread(getBTDevice());
-        mConnectThread.start();
+        if (getBTDevice()!= null) {
+            mConnectThread = new ConnectThread(getBTDevice());
+            mConnectThread.start();
+        }
+        else
+        {
+            Log.d("eMotoBT", "Device is not Paired");
+        }
     }
 
     public static boolean initiateBT (){
@@ -84,7 +91,9 @@ public class eMotoBTService {
             for (BluetoothDevice device : pairedDevices) {
                 // Add the name and address to an array adapter to show in a ListView
                 Log.d("eMotoBT","Paired: " + device.getName() + " : " + device.getAddress());
-                mDevice = device;
+                if (device.getName().equalsIgnoreCase("HC-06")) {
+                    mDevice = device; //if the device is the BT dongle, TODO: selection
+                }
             }
         }
         return mDevice;
@@ -92,7 +101,13 @@ public class eMotoBTService {
 
 
     public void sendBytes (byte[] bytes){
-        mConnectedThread.write(bytes);
+        if(BTServiceState ==1) {
+            mConnectedThread.write(bytes);
+        }
+        else
+        {
+            Log.d("eMotoBT","BT is not in ready state");
+        }
     }
 
 
@@ -109,21 +124,35 @@ public class eMotoBTService {
 
         Log.d("BT Service","MainBuffer:" + new String(mainIncomingBuffer, 0, mainIncomingBuffer.length));
 
-        for (int i =0 ; i<= (mainIncomingBuffer.length - 3); i++) {
+        for (int i =0 ; i<= (mainIncomingBuffer.length - 8); i++) {
             byte test = mainIncomingBuffer[i];
 
             if (test == PREAMBLE0) {
                 if (mainIncomingBuffer[i + 1] == PREAMBLE1) {
                     Log.d("BT Service", "Detect incoming PreAmble");
 
-                    int iMessageLength = 2 ;
+                    byte transactionID = mainIncomingBuffer[i + 2];
+                    byte command = mainIncomingBuffer[i + 3];
+                    byte contentSize0 = mainIncomingBuffer[i + 4];
+                    byte contentSize1  = mainIncomingBuffer[i + 5];
+                    byte contentCRC  = mainIncomingBuffer[i + 6];
+                    byte headerCRC  = mainIncomingBuffer[i + 7];
+                    byte[] contentSizeArray = {contentSize0,contentSize1};
+                    int iContentSize = (int)ByteBuffer.wrap(contentSizeArray).getShort();
+
+                    int iMessageLength = 8 ;
                     int iNewRemainingMainBufferLength =  mainIncomingBuffer.length - iMessageLength - i ;
                     byte[] newRemainingMainBuffer = new byte[iNewRemainingMainBufferLength];
                     byte[] messageBytes = new byte[iMessageLength];
-                    Log.d("BT Service","messageBytes:" + new String(messageBytes, 0, messageBytes.length));
 
+                    //Extract message from main Buffer
                     System.arraycopy(mainIncomingBuffer,iMessageLength + i,newRemainingMainBuffer,0,iNewRemainingMainBufferLength);
                     System.arraycopy(mainIncomingBuffer,i,messageBytes,0,iMessageLength);
+
+                    Log.d("BT Service","messageBytes:" + new String(messageBytes, 0, messageBytes.length));
+
+
+                    mainIncomingBuffer = newRemainingMainBuffer; //update buffer after dectect Preamble
                     i = 0; //reset counter
 
                     // break; //break loop
@@ -226,13 +255,13 @@ public class eMotoBTService {
             while (true) {
                 try {
                     int availableBytes = mmInStream.available();
-                    if(availableBytes > 8) {
+                    if(availableBytes > 7) {
                         // Read from the InputStream
                         bytes = mmInStream.read(buffer);
                         // Send the obtained bytes to the UI activity
-                        Log.d("BT", "Data:" + new String(buffer, 0, bytes));
+                        Log.d("BT Service", "IncomingData:" + new String(buffer, 0, bytes));
 
-                        mmOutStream.write((byte) 0x66);
+                        mmOutStream.write(PREAMBLE);
                         processIncomingBytes(Arrays.copyOfRange(buffer,0,bytes));
                     }
                 } catch (IOException e) {
