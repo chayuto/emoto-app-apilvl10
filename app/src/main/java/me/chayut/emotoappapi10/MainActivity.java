@@ -51,11 +51,12 @@ public class MainActivity extends ActionBarActivity {
 
     public void btnClicked(View v)
     {
-        meMotoBTService = new eMotoBTService(this);
+        if(meMotoBTService.initiateBT()) {
+            meMotoBTService = new eMotoBTService(this);
 
-        Log.d("Application","BtnClicked");
-        byte[] mBytes = {(byte) 0x89, (byte) 0xfe};
-       // meMotoBTService.sendBytes(mBytes);
+            Log.d("Application", "BtnClicked");
+
+        }
 
 
     }
@@ -63,6 +64,8 @@ public class MainActivity extends ActionBarActivity {
     public void sendClicked(View v)
     {
         Log.d("Application","SendClicked");
+        byte[] mBytes = {(byte) 0x89, (byte) 0xfe};
+        meMotoBTService.sendBytes(mBytes);
     }
 
     public void sendClicked2(View v)
