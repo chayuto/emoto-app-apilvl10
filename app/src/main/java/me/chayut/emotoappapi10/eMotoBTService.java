@@ -12,6 +12,8 @@ import android.widget.Toast;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Handler;
@@ -25,21 +27,25 @@ public class eMotoBTService {
 
     private final static int REQUEST_ENABLE_BT = 1;
 
-    public final static int[] PREAMBLE = {0xEC,0xDF};
-    public final static int GET_STATUS = 0xA5;
-    public final static int RTS_IMAGE = 0x4B;
-    public final static int ACK_IMAGE_INFO = 0x6B;
-    public final static int ACK_IMAGE_DATA = 0x4A;
-    public final static int NACK_RTS = 0x9E;
+    public final static byte[] PREAMBLE = {(byte)0xEC,(byte)0xDF};
+    public final static byte PREAMBLE0 = (byte)0xEC;
+    public final static byte PREAMBLE1 = (byte)0xDF;
+    public final static byte GET_STATUS = (byte)0xA5;
+    public final static byte RTS_IMAGE = (byte)0x4B;
+    public final static byte ACK_IMAGE_INFO = (byte)0x6B;
+    public final static byte ACK_IMAGE_DATA = (byte)0x4A;
+    public final static byte NACK_RTS = (byte)0x9E;
 
 
 
     private final BluetoothAdapter mAdapter;
-    //private final Handler mHandler;
+
     private ConnectThread mConnectThread;
     private ConnectedThread mConnectedThread;
     private int BTServiceState;
     private Context mContext;
+
+    private byte[] mainIncomingBuffer = {0};
 
     public eMotoBTService(Context context) { //, Handler handler
         BTServiceState = 0;
@@ -94,6 +100,39 @@ public class eMotoBTService {
         return BTServiceState;
     }
 
+    private void processIncomingBytes (byte[] incomingBytes){
+        byte[] newMainBuffer = new byte[mainIncomingBuffer.length + incomingBytes.length];
+        System.arraycopy(mainIncomingBuffer, 0, newMainBuffer, 0, mainIncomingBuffer.length);
+        System.arraycopy(incomingBytes, 0, newMainBuffer, mainIncomingBuffer.length, incomingBytes.length);
+
+        mainIncomingBuffer = newMainBuffer;
+
+        Log.d("BT Service","MainBuffer:" + new String(mainIncomingBuffer, 0, mainIncomingBuffer.length));
+
+        for (int i =0 ; i<= (mainIncomingBuffer.length - 3); i++) {
+            byte test = mainIncomingBuffer[i];
+
+            if (test == PREAMBLE0) {
+                if (mainIncomingBuffer[i + 1] == PREAMBLE1) {
+                    Log.d("BT Service", "Detect incoming PreAmble");
+
+                    int iMessageLength = 2 ;
+                    int iNewRemainingMainBufferLength =  mainIncomingBuffer.length - iMessageLength - i ;
+                    byte[] newRemainingMainBuffer = new byte[iNewRemainingMainBufferLength];
+                    byte[] messageBytes = new byte[iMessageLength];
+                    Log.d("BT Service","messageBytes:" + new String(messageBytes, 0, messageBytes.length));
+
+                    System.arraycopy(mainIncomingBuffer,iMessageLength + i,newRemainingMainBuffer,0,iNewRemainingMainBufferLength);
+                    System.arraycopy(mainIncomingBuffer,i,messageBytes,0,iMessageLength);
+                    i = 0; //reset counter
+
+                    // break; //break loop
+                }
+            }
+        }
+
+
+    }
 
     private class ConnectThread extends Thread {
         private final BluetoothSocket mmSocket;
@@ -194,6 +233,7 @@ public class eMotoBTService {
                         Log.d("BT", "Data:" + new String(buffer, 0, bytes));
 
                         mmOutStream.write((byte) 0x66);
+                        processIncomingBytes(Arrays.copyOfRange(buffer,0,bytes));
                     }
                 } catch (IOException e) {
                     break;
