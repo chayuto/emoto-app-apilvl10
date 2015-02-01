@@ -5,21 +5,17 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
-import android.content.Intent;
 import android.util.Log;
 import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Handler;
 
-import static android.support.v4.app.ActivityCompat.startActivityForResult;
 
 /**
  * Created by chayut on 15/01/15.
@@ -99,6 +95,9 @@ public class eMotoBTService {
         return mDevice;
     }
 
+    public int getServiceState (){
+        return BTServiceState;
+    }
 
     public void sendBytes (byte[] bytes){
         if(BTServiceState ==1) {
@@ -110,10 +109,34 @@ public class eMotoBTService {
         }
     }
 
+    public boolean sendEMotoPacket(byte command,int transaction, byte[] payload)
+    {
+        boolean success = false;
 
-    public int getServiceState (){
-        return BTServiceState;
+        if (transaction > 255){ return success;}
+
+        byte[] header = new byte[8 + payload.length];
+        header[0] = PREAMBLE0;
+        header[1] = PREAMBLE1;
+        header[2] = (byte) transaction;
+        header[3] = command;
+        byte[] bytes = ByteBuffer.allocate(2).putInt(payload.length).array();
+        Log.d("Debug",String.format("%x %x", bytes[0] , bytes[1]));
+        header[4] = bytes[0];
+        header[5] = bytes[1];
+        header[6] = (byte) 0x55; //TODO: make CRC function
+        header[7] = (byte) 0xcc; //TODO: make CRC function
+
+        System.arraycopy(payload,0,header,8,payload.length); //copy payload into out buffer
+
+        sendBytes(header);
+
+        success = true; //TODO: change response of the function
+
+        return success;
     }
+
+
 
     private void processIncomingBytes (byte[] incomingBytes){
         byte[] newMainBuffer = new byte[mainIncomingBuffer.length + incomingBytes.length];
@@ -162,6 +185,9 @@ public class eMotoBTService {
 
 
     }
+
+
+   //region Threads
 
     private class ConnectThread extends Thread {
         private final BluetoothSocket mmSocket;
@@ -284,6 +310,8 @@ public class eMotoBTService {
             } catch (IOException e) { }
         }
     }
+
+    //endregion
 
     void sendToasttoUI (String message)
     {
