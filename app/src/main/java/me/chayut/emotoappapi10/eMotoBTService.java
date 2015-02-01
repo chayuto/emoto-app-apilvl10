@@ -5,21 +5,17 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
-import android.content.Intent;
 import android.util.Log;
 import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Handler;
 
-import static android.support.v4.app.ActivityCompat.startActivityForResult;
 
 /**
  * Created by chayut on 15/01/15.
@@ -36,6 +32,8 @@ public class eMotoBTService {
     public final static byte ACK_IMAGE_INFO = (byte)0x6B;
     public final static byte ACK_IMAGE_DATA = (byte)0x4A;
     public final static byte NACK_RTS = (byte)0x9E;
+
+    public final static String eMotoCellBTName = "HC-06";
 
 
 
@@ -60,6 +58,7 @@ public class eMotoBTService {
         else
         {
             Log.d("eMotoBT", "Device is not Paired");
+            sendToasttoUI ("Device is not Paired");
         }
     }
 
@@ -91,7 +90,7 @@ public class eMotoBTService {
             for (BluetoothDevice device : pairedDevices) {
                 // Add the name and address to an array adapter to show in a ListView
                 Log.d("eMotoBT","Paired: " + device.getName() + " : " + device.getAddress());
-                if (device.getName().equalsIgnoreCase("HC-06")) {
+                if (device.getName().equalsIgnoreCase(eMotoCellBTName)) {
                     mDevice = device; //if the device is the BT dongle, TODO: selection
                 }
             }
@@ -99,6 +98,9 @@ public class eMotoBTService {
         return mDevice;
     }
 
+    public int getServiceState (){
+        return BTServiceState;
+    }
 
     public void sendBytes (byte[] bytes){
         if(BTServiceState ==1) {
@@ -110,9 +112,38 @@ public class eMotoBTService {
         }
     }
 
+    public boolean sendEMotoPacket(byte command,int transaction, byte[] payload)
+    {
+        boolean success = false;
 
-    public int getServiceState (){
-        return BTServiceState;
+        if (transaction > 255){ return success;}
+
+        byte[] outBytes = new byte[8 + payload.length];
+        outBytes[0] = PREAMBLE0;
+        outBytes[1] = PREAMBLE1;
+        outBytes[2] = (byte) transaction;
+        outBytes[3] = command;
+        byte[] bytes = ByteBuffer.allocate(2).putInt(payload.length).array();
+        Log.d("Debug",String.format("%x %x", bytes[0] , bytes[1]));
+        outBytes[4] = bytes[0];
+        outBytes[5] = bytes[1];
+        outBytes[6] = (byte) 0x55; //TODO: make CRC function
+        outBytes[7] = (byte) 0xcc; //TODO: make CRC function
+
+        System.arraycopy(payload,0,outBytes,8,payload.length); //copy payload into out buffer
+
+        sendBytes(outBytes);
+
+        success = true; //TODO: change response of the function
+
+        return success;
+    }
+
+    public boolean sendImageData(int transaction, byte[] imageData)
+    {
+
+
+        return false;
     }
 
     private void processIncomingBytes (byte[] incomingBytes){
@@ -162,6 +193,9 @@ public class eMotoBTService {
 
 
     }
+
+
+   //region Threads
 
     private class ConnectThread extends Thread {
         private final BluetoothSocket mmSocket;
@@ -248,7 +282,7 @@ public class eMotoBTService {
 
 
             //
-            byte[] buffer = new byte[1024];  // buffer store for the stream
+            byte[] buffer = new byte[2048];  // buffer store for the stream
             int bytes; // bytes returned from read()
 
             // Keep listening to the InputStream until an exception occurs
@@ -284,6 +318,8 @@ public class eMotoBTService {
             } catch (IOException e) { }
         }
     }
+
+    //endregion
 
     void sendToasttoUI (String message)
     {
