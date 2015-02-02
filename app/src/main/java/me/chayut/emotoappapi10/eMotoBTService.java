@@ -142,7 +142,8 @@ public class eMotoBTService {
     public boolean sendImageData(int transaction, byte[] imageData)
     {
 
-
+        sendEMotoPacket(RTS_IMAGE,transaction,imageData);
+        //TODO: change response of the function
         return false;
     }
 
