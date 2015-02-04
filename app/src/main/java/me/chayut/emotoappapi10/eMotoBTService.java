@@ -123,10 +123,10 @@ public class eMotoBTService {
         outBytes[1] = PREAMBLE1;
         outBytes[2] = (byte) transaction;
         outBytes[3] = command;
-        byte[] bytes = ByteBuffer.allocate(2).putInt(payload.length).array();
-        Log.d("Debug",String.format("%x %x", bytes[0] , bytes[1]));
-        outBytes[4] = bytes[0];
-        outBytes[5] = bytes[1];
+        outBytes[4] = (byte) payload.length;
+        outBytes[5] = (byte) (payload.length>>8);
+
+        Log.d("Debug",String.format("%x %x", outBytes[4] ,outBytes[5]));
         outBytes[6] = (byte) 0x55; //TODO: make CRC function
         outBytes[7] = (byte) 0xcc; //TODO: make CRC function
 
@@ -172,7 +172,30 @@ public class eMotoBTService {
                     byte[] contentSizeArray = {contentSize0,contentSize1};
                     int iContentSize = (int)ByteBuffer.wrap(contentSizeArray).getShort();
 
-                    int iMessageLength = 8 ;
+                    //Analyse Header
+                    switch (command)
+                    {
+
+                        case GET_STATUS: Log.d("BT Service", "GET_STATUS");
+                            break;
+                        case RTS_IMAGE: Log.d("BT Service", "RTS_IMAGE");
+                            break;
+                        case ACK_IMAGE_DATA: Log.d("BT Service", "ACK_IMAGE_DATA");
+                            break;
+                        case ACK_IMAGE_INFO: Log.d("BT Service", "ACK_IMAGE_INFO");
+                            break;
+                        case NACK_RTS:
+                            Log.d("BT Service", "ACK_IMAGE_INFO");
+                            break;
+                        default:
+                            Log.d("BT Service", "Unrecognized command");
+                            break;
+                    }
+                    Log.d("BT Service", String.format("%d",iContentSize));
+
+
+                    //remove message from buffer
+                    int iMessageLength = 8 ; //TEMP
                     int iNewRemainingMainBufferLength =  mainIncomingBuffer.length - iMessageLength - i ;
                     byte[] newRemainingMainBuffer = new byte[iNewRemainingMainBufferLength];
                     byte[] messageBytes = new byte[iMessageLength];

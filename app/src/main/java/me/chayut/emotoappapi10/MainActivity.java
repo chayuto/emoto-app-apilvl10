@@ -65,12 +65,14 @@ public class MainActivity extends ActionBarActivity {
     {
         Log.d("Application","SendClicked");
         byte[] mBytes = {(byte) 0x89, (byte) 0xfe};
-        meMotoBTService.sendBytes(mBytes);
+        meMotoBTService.sendImageData(100,mBytes);
     }
 
     public void sendClicked2(View v)
     {
         Log.d("Application","SendClicked2");
+        byte[] mBytes = {(byte) 0x11, (byte) 0x22, (byte) 0x33, (byte) 0x44, (byte) 0x55,(byte) 0x11, (byte) 0x22, (byte) 0x33, (byte) 0x44, (byte) 0x55};
+        meMotoBTService.sendEMotoPacket(eMotoBTService.GET_STATUS,201,mBytes);
     }
 
 
